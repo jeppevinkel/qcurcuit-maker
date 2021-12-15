@@ -1,3 +1,5 @@
+import {writeFile} from "fs/promises";
+
 class ElementType {
     toString() {
         return ''
@@ -11,7 +13,9 @@ class None extends ElementType {
 }
 
 class Raw extends ElementType {
-    constructor(text) {
+    private text: string;
+
+    constructor(text: string) {
         super()
         this.text = text
     }
@@ -22,7 +26,9 @@ class Raw extends ElementType {
 }
 
 class Insert extends ElementType {
-    constructor(text) {
+    private text: string;
+
+    constructor(text: string) {
         super()
         this.text = text
     }
@@ -53,7 +59,9 @@ class Meter extends ElementType {
 }
 
 class Ctrl extends ElementType {
-    constructor(dist) {
+    private dist: number;
+
+    constructor(dist: number) {
         super()
         this.dist = dist
     }
@@ -64,7 +72,9 @@ class Ctrl extends ElementType {
 }
 
 class Barrier extends ElementType {
-    constructor(height) {
+    private height: number;
+
+    constructor(height: number) {
         super()
         this.height = height
     }
@@ -85,7 +95,9 @@ class Hdots extends ElementType {
 }
 
 class Gate extends ElementType {
-    constructor(name) {
+    private name: string;
+
+    constructor(name: string) {
         super()
         this.name = name
     }
@@ -106,7 +118,9 @@ class HGate extends ElementType {
 }
 
 class Ket extends ElementType {
-    constructor(name) {
+    private name: string;
+
+    constructor(name: string) {
         super()
         this.name = name
     }
@@ -117,9 +131,11 @@ class Ket extends ElementType {
 }
 
 class Lstick extends ElementType {
-    constructor(name) {
+    private name: string;
+
+    constructor(name: string | ElementType) {
         super()
-        this.name = name
+        this.name = name.toString()
     }
 
     toString() {
@@ -127,58 +143,67 @@ class Lstick extends ElementType {
     }
 }
 
-class Element {
-    constructor(type) {
+class Cell {
+    public type: ElementType;
+
+    constructor(type: ElementType) {
         this.type = type
     }
 }
 
 class Circuit {
     modifiedWidth = 0
+    private width: number;
+    private height: number;
+    private elements: any;
+    private separators: any[];
+    private labelRow: boolean;
+    private colSize: number;
+    private rowSize: number;
 
-    constructor(width, height, labelRow = false, colSize = 0.8, rowSize = 0.2) {
+    constructor(width: number, height: number, labelRow: boolean = false, colSize: number = 0.8, rowSize: number = 0.2) {
         this.width = width
         this.height = height
-        this.elements = Array.from({length: height + labelRow}, () => Array.from({length: width}, () => new Element(new Wire())))
+        this.elements = Array.from({length: height + (labelRow as unknown as number)}, () => Array.from({length: width}, () => new Cell(new Wire())))
         this.separators = Array()
         this.labelRow = labelRow
         this.colSize = colSize
         this.rowSize = rowSize
 
         if (labelRow) {
-            this.elements[0] = Array.from({length: width}, () => new Element(new None()))
+            this.elements[0] = Array.from({length: width}, () => new Cell(new None()))
         }
     }
 
-    setElement(x, y, type) {
-        this.elements[y+this.labelRow][x].type = type
+    setElement(x: number, y: number, type: ElementType) {
+        this.elements[y+(this.labelRow as unknown as number)][x].type = type
         if (x > this.modifiedWidth) {
             this.modifiedWidth = x
         }
     }
 
-    addElement(x, y, type) {
-        this.elements[y+this.labelRow][x].type += type;
+    addElement(x: number, y: number, type: ElementType) {
+        this.elements[y+(this.labelRow as unknown as number)][x].type += type
         if (x > this.modifiedWidth) {
             this.modifiedWidth = x
         }
     }
 
-    setControl(x, y, dist) {
+    setControl(x: number, y: number, dist: number) {
         if (y+dist < 0 || y+dist >= this.height) {
             throw new Error('Control out of bounds')
         }
         this.setElement(x, y+dist, new Ctrl(-dist))
     }
 
-    addControl(x, y, dist) {
+    addControl(x: number, y: number, dist: number) {
         if (y+dist < 0 || y+dist >= this.height) {
             throw new Error('Control out of bounds')
         }
         this.addElement(x, y+dist, new Ctrl(-dist))
     }
 
-    addLabel(x, text) {
+    addLabel(x: number, text: string) {
         if (!this.labelRow) throw new Error('Label row not set')
 
         if (x < 0) {
@@ -187,20 +212,20 @@ class Circuit {
 
         if (x >= this.width) {
             // this.elements.
-            this.elements[0][x] = new Element(new Raw(text))
+            this.elements[0][x] = new Cell(new Raw(text))
         }
 
         this.elements[0][x].type = new Insert(text)
     }
 
-    addSeparator(x, label = null) {
+    addSeparator(x: number, label: string | null = null) {
         // this.addElement(x, 0, new Barrier(this.height-1))
         // if (label != null) this.addLabel(x+1, label)
         this.separators.push({x: x, label: label})
     }
 
-    getElement(x, y) {
-        return this.elements[y+this.labelRow][x].type;
+    getElement(x: number, y: number) {
+        return this.elements[y+(this.labelRow as unknown as number)][x].type;
     }
 
     toString() {
@@ -214,7 +239,7 @@ class Circuit {
             labelOffset++
         }
 
-        let gates = this.elements.map(row => row.map(element => element.type.toString()).join(' & ')).join('\\\\\n');
+        let gates = this.elements.map((row: any[]) => row.map(element => element.type.toString()).join(' & ')).join('\\\\\n');
         return `\\Qcircuit @C=${this.colSize}em @R=${this.rowSize}em @!R {\n${gates}\n}`;
     }
 
@@ -223,7 +248,7 @@ class Circuit {
     }
 }
 
-let myCircuit = new Circuit(14, 3, labelRow=true);
+let myCircuit = new Circuit(14, 3, true);
 
 myCircuit.setElement(0, 0, new Lstick(new Ket('0')))
 myCircuit.setElement(0, 1, new Lstick(new Ket('0') + '^{\\otimes C}'))
@@ -257,4 +282,11 @@ myCircuit.addSeparator(12, '\\psi_7')
 myCircuit.setElement(13, 0, new Meter())
 myCircuit.setElement(13, 2, new Meter())
 
-myCircuit.printCircuit()
+let latex = myCircuit.toString()
+
+writeFile("test.tex", latex)
+    .then(() => {
+    console.log("File written successfully!");
+}).catch((error) => {
+    console.log("Error writing file: ", error);
+});
