@@ -48,6 +48,19 @@ class Wire extends ElementType {
     }
 }
 
+class WireX extends ElementType {
+    private dist: number;
+
+    constructor(dist: number) {
+        super()
+        this.dist = dist
+    }
+
+    toString() {
+        return `\\qwx[${this.dist}]`
+    }
+}
+
 class Meter extends ElementType {
     constructor() {
         super()
@@ -114,6 +127,16 @@ class HGate extends ElementType {
 
     toString() {
         return `\\gate{H}`
+    }
+}
+
+class Swap extends ElementType {
+    constructor() {
+        super()
+    }
+
+    toString() {
+        return `\\qswap`
     }
 }
 
@@ -201,6 +224,15 @@ class Circuit {
             throw new Error('Control out of bounds')
         }
         this.addElement(x, y+dist, new Ctrl(-dist))
+    }
+
+    setSwap(x: number, y: number, dist: number) {
+        if (y+dist < 0 || y+dist >= this.height) {
+            throw new Error('Swap out of bounds')
+        }
+        this.setElement(x, y+dist, new Swap())
+        this.setElement(x, y, new Swap())
+        this.addElement(x, y, new WireX(dist))
     }
 
     addLabel(x: number, text: string) {
